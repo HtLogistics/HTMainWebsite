@@ -1,10 +1,20 @@
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { nanoid } from "nanoid";
 import type { BlogPost, BlogPostInput } from "@shared/blog";
 import { slugify } from "@shared/blog";
 
-export const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.resolve(process.cwd(), "data");
+// On Vercel the project directory is read-only at runtime (only /tmp is writable), so
+// posts/enquiries/uploads fall back to /tmp there. That storage does not persist across
+// invocations — this is the known, accepted gap until the CMS moves to a real database.
+function resolveDataDir(): string {
+  if (process.env.DATA_DIR) return path.resolve(process.env.DATA_DIR);
+  if (process.env.VERCEL) return path.join(os.tmpdir(), "ht-logistics-data");
+  return path.resolve(process.cwd(), "data");
+}
+
+export const DATA_DIR = resolveDataDir();
 const POSTS_FILE = path.join(DATA_DIR, "posts.json");
 
 const now = () => new Date().toISOString();

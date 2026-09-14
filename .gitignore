@@ -8,7 +8,9 @@ build/
 *.dist
 
 # CMS data (posts + uploaded images) — must persist across deploys, never committed
-data/
+# (anchored to the repo root only — a bare "data/" here would also match and hide
+# client/src/data/, which is real committed source code, not runtime CMS data)
+/data/
 
 # Environment variables
 .env
