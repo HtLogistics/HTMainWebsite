@@ -97,7 +97,7 @@ pnpm hash-password "yourpass" # prints ADMIN_PASSWORD_HASH for .env
 pnpm dev                      # Vite client on :3000 + API server on :5050
 pnpm check                    # tsc --noEmit
 pnpm build                    # vite build + esbuild server -> dist/
-pnpm start                    # NODE_ENV=production node dist/index.js (port 3000)
+pnpm start                    # NODE_ENV=production node dist/server.js (port 3000)
 ```
 
 `.env` keys: `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH`, `SESSION_SECRET`, optional

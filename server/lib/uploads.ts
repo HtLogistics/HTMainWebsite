@@ -5,12 +5,27 @@ import { nanoid } from "nanoid";
 import { DATA_DIR } from "./postsStore";
 
 export const UPLOADS_DIR = path.join(DATA_DIR, "uploads");
-fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+
+// Creating this at module load (rather than on first use) would crash every request on cold
+// start if the directory isn't writable yet, instead of just failing the upload request.
+let uploadsDirReady = false;
+function ensureUploadsDir() {
+  if (uploadsDirReady) return;
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+  uploadsDirReady = true;
+}
 
 const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml"]);
 
 const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
+  destination: (_req, _file, cb) => {
+    try {
+      ensureUploadsDir();
+      cb(null, UPLOADS_DIR);
+    } catch (err) {
+      cb(err as Error, UPLOADS_DIR);
+    }
+  },
   filename: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     cb(null, `${nanoid()}${ext}`);

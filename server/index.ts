@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function startServer() {
-  // Bundled deploys (pnpm build/start, VPS/Railway/etc.) put dist/index.js next to
+  // Bundled deploys (pnpm build/start, VPS/Railway/etc.) put dist/server.js next to
   // dist/public; dev runs this file in place from server/, one level above dist/public.
   const staticPath =
     process.env.NODE_ENV === "production"

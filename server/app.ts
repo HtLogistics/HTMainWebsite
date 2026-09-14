@@ -8,7 +8,7 @@ import { renderShell, resolvePageMeta, robotsTxt, sitemapXml } from "./lib/seo";
 import { UPLOADS_DIR } from "./lib/uploads";
 
 // The built client (`dist/public`) sits in a different place relative to this module
-// depending on how the server is packaged (bundled dist/index.js next to dist/public
+// depending on how the server is packaged (bundled dist/server.js next to dist/public
 // vs. a Vercel function bundle rooted at the project directory), so callers resolve
 // and pass in the absolute path rather than this module guessing from its own __dirname.
 export function createApp(staticPath: string) {
