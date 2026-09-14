@@ -328,7 +328,8 @@ export function HomePage() { return <Layout><Seo page={staticPage("/")} /><main>
    supporting copy, CTA, scroll cue). Pages that pass neither keep the compact version. */
 export function PageHero({ eyebrow, title, image = assets.hero, copy, cta, scrollTarget }: { eyebrow: string; title: React.ReactNode; image?: string; copy?: string; cta?: { label: string; href: string }; scrollTarget?: string }) {
   const full = Boolean(copy || cta);
-  return <section className={full ? "page-hero page-hero-full" : "page-hero"} style={{ backgroundImage: `linear-gradient(90deg, rgba(0,0,0,.82), rgba(0,0,0,.38)), url(${image})` }}>
+  const longTitle = typeof title === "string" && title.length > 32;
+  return <section className={`page-hero${full ? " page-hero-full" : ""}${longTitle ? " is-long-title" : ""}`} style={{ backgroundImage: `linear-gradient(90deg, rgba(0,0,0,.82), rgba(0,0,0,.38)), url(${image})` }}>
     <div className="wrap">
       <span className="eyebrow">{eyebrow}</span>
       <h1>{title}</h1>
@@ -389,6 +390,16 @@ function FacilitiesSection() {
         </tr>)}
       </tbody>
     </table></div>
+    <div className="matrix-cards">{facilities.map(f => <div className="matrix-card" key={f.name}>
+      {f.hq && <span className="matrix-badge">Headquarters</span>}
+      <strong>{f.name}</strong>
+      <span className="matrix-loc"><MapPin />{f.location}</span>
+      <div className="matrix-card-figures">
+        <div><span className="matrix-figure">{f.space}<small>m²</small></span><span>Floor space</span></div>
+        <div><span className="matrix-figure">{f.pallets}</span><span>Pallet capacity</span></div>
+      </div>
+      <ul className="matrix-card-storage">{f.storage.map(type => <li key={type}>{type}</li>)}</ul>
+    </div>)}</div>
   </div></section>;
 }
 

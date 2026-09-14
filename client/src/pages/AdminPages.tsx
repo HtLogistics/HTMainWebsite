@@ -70,8 +70,8 @@ function LoginView({ onSuccess }: { onSuccess: () => void }) {
 
   return (
     <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#f0f0ed" }}>
-      <form onSubmit={submit} style={{ background: "#fff", padding: 40, borderRadius: 8, width: 360, display: "grid", gap: 16, boxShadow: "0 10px 40px #0001" }}>
-        <h1 style={{ fontSize: 22, margin: 0 }}>HT Logistics Admin</h1>
+      <form onSubmit={submit} style={{ background: "#fff", padding: 40, borderRadius: 8, width: "min(360px, calc(100vw - 32px))", display: "grid", gap: 16, boxShadow: "0 10px 40px #0001" }}>
+        <h1 style={{ fontSize: 22, margin: 0, color: "var(--charcoal)", letterSpacing: "-.02em" }}>HT Logistics Admin</h1>
         <Input placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required autoFocus />
         <Input placeholder="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         {error && <p style={{ color: "#ef1d27", fontSize: 13, margin: 0 }}>{error}</p>}

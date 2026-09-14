@@ -98,10 +98,10 @@ export function ServiceDetailPage({ slug }: { slug: string }) {
           <tbody>
             {facilities.map(f => <tr key={f.name}>
               <td><strong>{f.name}</strong>{f.hq && <span className="service-table-tag">HQ</span>}</td>
-              <td>{f.location}</td>
-              <td className="is-num">{f.space}<small>m²</small></td>
-              <td className="is-num">{f.pallets}</td>
-              <td>{f.storage.join(", ")}</td>
+              <td data-label="Location">{f.location}</td>
+              <td className="is-num" data-label="Floor space">{f.space}<small>m²</small></td>
+              <td className="is-num" data-label="Pallet positions">{f.pallets}</td>
+              <td data-label="Storage">{f.storage.join(", ")}</td>
             </tr>)}
           </tbody>
         </table></div>
