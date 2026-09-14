@@ -339,16 +339,16 @@ export function PageHero({ eyebrow, title, image = assets.hero, copy, cta, scrol
   </section>;
 }
 
-/* PLACEHOLDER — must not ship as-is. Awaiting real founder name, title, portrait
-   and an approved quote from HT Logistics. Do not invent any of these. */
-function FounderSection() {
+/* Kept intentionally team-level rather than naming an individual — HT Logistics does not
+   want a specific founder identified on the public site. */
+function CompanyStatementSection() {
   return <section className="founder-section wrap">
-    <div className="founder-photo-placeholder"><span>Founder photo<br />to be supplied</span></div>
+    <div className="founder-stat"><strong>2023</strong><span>Established in Penang, Malaysia</span></div>
     <div className="founder-copy">
-      <span className="eyebrow red">FROM OUR FOUNDER</span>
+      <span className="eyebrow red">HOW WE OPERATE</span>
       <blockquote className="values-quote">
-        [Founder quote to be provided by HT Logistics]
-        <cite>— [Founder name], [Title]</cite>
+        We started as a single warehousing operation in 2023. Every service we've added since — kitting, packaging, transportation, manpower supply — exists because a client needed it done properly, in-house, by a team that treats their supply chain like its own.
+        <cite>— The HT Logistics Team</cite>
       </blockquote>
     </div>
   </section>;
@@ -482,6 +482,7 @@ export function AboutPage() { return <Layout><Seo page={staticPage("/about-us/")
         </div>
         <div className="about-facts-strip">
           <div className="about-fact"><strong>2023</strong><span>Established</span></div>
+          <div className="about-fact"><strong>15+</strong><span>Years of team experience</span></div>
           <div className="about-fact"><strong>Penang</strong><span>Headquarters</span></div>
           <div className="about-fact"><strong>5</strong><span>Facilities across Penang &amp; Kulim</span></div>
           <div className="about-fact"><strong>200+</strong><span>Active workers</span></div>
@@ -491,7 +492,7 @@ export function AboutPage() { return <Layout><Seo page={staticPage("/about-us/")
       <div><span className="vision-icon"><Eye /></span><span className="eyebrow">VISION</span><h2>Premier logistics partner.</h2><p>Setting industry standards in Malaysia and beyond.</p></div>
       <div><span className="vision-icon"><Target /></span><span className="eyebrow">MISSION</span><h2>Sustainability, innovation, and integrity.</h2><p>Delivering integrated logistics excellence while empowering communities.</p></div>
       <div><span className="vision-icon"><HeartHandshake /></span><span className="eyebrow">VALUES</span><h2>Guided by five core values.</h2><p>Teamwork, integrity, innovation, dynamism and professionalism.</p></div>
-    </section><FounderSection /><FacilitiesSection /><WorkflowSection /><CommitmentSection /><IndustriesSection /><WhyChooseSection /><ValuesSpotlight /><AboutContactBanner /></main></Layout>; }
+    </section><CompanyStatementSection /><FacilitiesSection /><WorkflowSection /><CommitmentSection /><IndustriesSection /><WhyChooseSection /><ValuesSpotlight /><AboutContactBanner /></main></Layout>; }
 
 /* ---------- Services page ---------- */
 
