@@ -7,7 +7,7 @@
     "dev": "concurrently -k -n client,server -c blue,green \"vite --host\" \"PORT=5050 tsx watch server/index.ts\"",
     "dev:client": "vite --host",
     "dev:server": "PORT=5050 tsx watch server/index.ts",
-    "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outfile=dist/server.js",
+    "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outfile=dist/server.js && esbuild server/vercel.ts --platform=node --packages=external --bundle --format=esm --outfile=dist/vercel.js && mkdir -p dist/static && cp -R dist/public/assets dist/static/",
     "start": "NODE_ENV=production node dist/server.js",
     "preview": "vite preview --host",
     "check": "tsc --noEmit",

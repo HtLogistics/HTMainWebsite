@@ -1,9 +1,9 @@
 {
   "framework": null,
   "buildCommand": "pnpm build",
-  "outputDirectory": "dist",
+  "outputDirectory": "dist/static",
   "functions": {
-    "api/index.ts": {
+    "api/index.js": {
       "includeFiles": "dist/public/**"
     }
   },
