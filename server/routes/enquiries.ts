@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { asyncHandler } from "../lib/asyncHandler";
 import { enquiryInputSchema } from "@shared/enquiry";
 import { createEnquiry, deleteEnquiry, listEnquiries, markEnquiryRead } from "../lib/enquiriesStore";
 import { requireAdmin } from "../lib/auth";
@@ -32,7 +33,7 @@ function recordSubmission(ip: string): void {
 
 // ---------- Public ----------
 
-enquiriesRouter.post("/enquiries", async (req, res) => {
+enquiriesRouter.post("/enquiries", asyncHandler(async (req, res) => {
   const ip = req.ip ?? "unknown";
   if (isRateLimited(ip)) {
     res.status(429).json({ error: "Too many messages sent. Please try again later or call us directly." });
@@ -55,15 +56,15 @@ enquiriesRouter.post("/enquiries", async (req, res) => {
   recordSubmission(ip);
   await createEnquiry(parsed.data);
   res.status(201).json({ ok: true });
-});
+}));
 
 // ---------- Admin ----------
 
-enquiriesRouter.get("/enquiries", requireAdmin, async (_req, res) => {
+enquiriesRouter.get("/enquiries", requireAdmin, asyncHandler(async (_req, res) => {
   res.json({ enquiries: await listEnquiries() });
-});
+}));
 
-enquiriesRouter.patch("/enquiries/:id/read", requireAdmin, async (req, res) => {
+enquiriesRouter.patch("/enquiries/:id/read", requireAdmin, asyncHandler(async (req, res) => {
   const read = req.body?.read !== false;
   const enquiry = await markEnquiryRead(req.params.id, read);
   if (!enquiry) {
@@ -71,13 +72,13 @@ enquiriesRouter.patch("/enquiries/:id/read", requireAdmin, async (req, res) => {
     return;
   }
   res.json({ enquiry });
-});
+}));
 
-enquiriesRouter.delete("/enquiries/:id", requireAdmin, async (req, res) => {
+enquiriesRouter.delete("/enquiries/:id", requireAdmin, asyncHandler(async (req, res) => {
   const deleted = await deleteEnquiry(req.params.id);
   if (!deleted) {
     res.status(404).json({ error: "Enquiry not found" });
     return;
   }
   res.status(204).end();
-});
+}));

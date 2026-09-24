@@ -119,3 +119,6 @@ client/public/__manus__/version.json
 .project-config.json
 .source-backups/
 .claude/
+.vercel
+.env*
+!.env.example

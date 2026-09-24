@@ -19,7 +19,8 @@ export interface BlogPost {
 }
 
 export const blogPostInputSchema = z.object({
-  slug: z.string().trim().min(1).regex(/^[a-z0-9-]+$/, "Slug may only contain lowercase letters, numbers and hyphens").optional(),
+  // The editor sends "" when the slug field is left blank; that means "generate one from the title".
+  slug: z.union([z.literal(""), z.string().trim().min(1).regex(/^[a-z0-9-]+$/, "Slug may only contain lowercase letters, numbers and hyphens")]).optional(),
   title: z.string().trim().min(1, "Title is required"),
   excerpt: z.string().trim().default(""),
   content: z.string().trim().default(""),

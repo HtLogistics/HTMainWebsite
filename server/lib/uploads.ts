@@ -1,45 +1,35 @@
-import fs from "node:fs";
-import path from "node:path";
 import multer from "multer";
 import { nanoid } from "nanoid";
-import { DATA_DIR } from "./postsStore";
+import { dbError, getSupabase } from "./supabase";
 
-export const UPLOADS_DIR = path.join(DATA_DIR, "uploads");
-
-// Creating this at module load (rather than on first use) would crash every request on cold
-// start if the directory isn't writable yet, instead of just failing the upload request.
-let uploadsDirReady = false;
-function ensureUploadsDir() {
-  if (uploadsDirReady) return;
-  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-  uploadsDirReady = true;
-}
-
+const BUCKET = "uploads";
 const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml"]);
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    try {
-      ensureUploadsDir();
-      cb(null, UPLOADS_DIR);
-    } catch (err) {
-      cb(err as Error, UPLOADS_DIR);
-    }
-  },
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `${nanoid()}${ext}`);
-  },
-});
-
+// Serverless functions have a read-only filesystem outside /tmp and no shared disk between
+// invocations, so files are held in memory just long enough to forward to Supabase Storage.
 export const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     if (!ALLOWED_MIME_TYPES.has(file.mimetype)) {
-      cb(new Error("Unsupported file type. Please upload a JPEG, PNG, WebP, GIF or SVG image."));
+      cb(Object.assign(new Error("Unsupported file type. Please upload a JPEG, PNG, WebP, GIF or SVG image."), { status: 400 }));
       return;
     }
     cb(null, true);
   },
 });
+
+export async function uploadImage(file: Express.Multer.File): Promise<string> {
+  const dot = file.originalname.lastIndexOf(".");
+  const ext = dot === -1 ? "" : file.originalname.slice(dot).toLowerCase();
+  const filename = `${nanoid()}${ext}`;
+
+  const supabase = getSupabase();
+  const { error } = await supabase.storage.from(BUCKET).upload(filename, file.buffer, {
+    contentType: file.mimetype,
+    cacheControl: "31536000",
+  });
+  if (error) throw dbError(error);
+
+  return supabase.storage.from(BUCKET).getPublicUrl(filename).data.publicUrl;
+}

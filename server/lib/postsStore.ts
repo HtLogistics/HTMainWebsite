@@ -1,109 +1,74 @@
-import fs from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
 import { nanoid } from "nanoid";
 import type { BlogPost, BlogPostInput } from "@shared/blog";
 import { slugify } from "@shared/blog";
+import { dbError, getSupabase } from "./supabase";
 
-// On Vercel the project directory is read-only at runtime (only /tmp is writable), so
-// posts/enquiries/uploads fall back to /tmp there. That storage does not persist across
-// invocations — this is the known, accepted gap until the CMS moves to a real database.
-function resolveDataDir(): string {
-  if (process.env.DATA_DIR) return path.resolve(process.env.DATA_DIR);
-  if (process.env.VERCEL) return path.join(os.tmpdir(), "ht-logistics-data");
-  return path.resolve(process.cwd(), "data");
+const TABLE = "posts";
+
+type PostRow = {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string;
+  content: string;
+  featured_image: string | null;
+  category: string;
+  tags: string[];
+  author: string;
+  status: "draft" | "published";
+  seo_title: string;
+  meta_description: string;
+  published_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+function fromRow(r: PostRow): BlogPost {
+  return {
+    id: r.id,
+    slug: r.slug,
+    title: r.title,
+    excerpt: r.excerpt,
+    content: r.content,
+    featuredImage: r.featured_image,
+    category: r.category,
+    tags: r.tags,
+    author: r.author,
+    status: r.status,
+    seoTitle: r.seo_title,
+    metaDescription: r.meta_description,
+    publishedAt: r.published_at,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
 }
 
-export const DATA_DIR = resolveDataDir();
-const POSTS_FILE = path.join(DATA_DIR, "posts.json");
-
-const now = () => new Date().toISOString();
-
-const seedPosts: BlogPost[] = [
-  {
-    id: nanoid(),
-    slug: "launches-real-time-tracking-system-for-enhanced-delivery-transparency",
-    title: "Launches Real-Time Tracking System for Enhanced Delivery Transparency",
-    excerpt: "HT Logistics Solutions introduces a real-time tracking system to improve delivery transparency and customer experience.",
-    content: "HT Logistics Solutions has rolled out a real-time tracking system across its transportation fleet, giving customers live visibility into the status of their shipments from dispatch to delivery.\n\nThe new system reflects our ongoing commitment to operational transparency and customer confidence, and forms part of a broader investment in technology across our warehousing and transport operations.",
-    featuredImage: null,
-    category: "Company News",
-    tags: ["tracking", "technology", "delivery"],
-    author: "HT Logistics Solutions",
-    status: "published",
-    seoTitle: "Real-Time Delivery Tracking | HT Logistics Solutions",
-    metaDescription: "HT Logistics Solutions launches a real-time tracking system for enhanced delivery transparency across Malaysia.",
-    publishedAt: "2025-07-21T00:00:00.000Z",
-    createdAt: "2025-07-21T00:00:00.000Z",
-    updatedAt: "2025-07-21T00:00:00.000Z",
-  },
-  {
-    id: nanoid(),
-    slug: "sustainable-logistics-eco-friendly-packaging-initiative",
-    title: "Sustainable Logistics: Introduces Eco-Friendly Packaging Initiative",
-    excerpt: "Sustainable Logistics announces the launch of its Eco-Friendly Packaging Initiative, reinforcing its commitment to sustainability.",
-    content: "As part of our commitment to ethical and sustainable practices, HT Logistics Solutions has introduced an eco-friendly packaging initiative across its kitting and packaging operations.\n\nThe initiative reduces single-use plastic and prioritises recyclable materials, supporting both environmental goals and the expectations of our partners across the supply chain.",
-    featuredImage: null,
-    category: "Sustainability",
-    tags: ["sustainability", "packaging"],
-    author: "HT Logistics Solutions",
-    status: "published",
-    seoTitle: "Eco-Friendly Packaging Initiative | HT Logistics Solutions",
-    metaDescription: "HT Logistics Solutions introduces an eco-friendly packaging initiative reinforcing its sustainability commitment.",
-    publishedAt: "2025-06-13T00:00:00.000Z",
-    createdAt: "2025-06-13T00:00:00.000Z",
-    updatedAt: "2025-06-13T00:00:00.000Z",
-  },
-];
-
-let cache: BlogPost[] | null = null;
-let writeQueue: Promise<unknown> = Promise.resolve();
-
-async function ensureLoaded(): Promise<BlogPost[]> {
-  if (cache) return cache;
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  try {
-    const raw = await fs.readFile(POSTS_FILE, "utf-8");
-    cache = JSON.parse(raw) as BlogPost[];
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") {
-      cache = seedPosts;
-      await persist();
-    } else {
-      throw err;
-    }
-  }
-  return cache!;
-}
-
-async function persist(): Promise<void> {
-  const data = cache ?? [];
-  writeQueue = writeQueue.then(() => fs.writeFile(POSTS_FILE, JSON.stringify(data, null, 2), "utf-8"));
-  await writeQueue;
-}
-
+/* Newest-edited first — matches the admin list's expectations. */
 export async function listAllPosts(): Promise<BlogPost[]> {
-  const posts = await ensureLoaded();
-  return [...posts].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const { data, error } = await getSupabase().from(TABLE).select("*").order("updated_at", { ascending: false });
+  if (error) throw dbError(error);
+  return (data as PostRow[]).map(fromRow);
 }
 
 export async function listPublishedPosts(opts: { category?: string; tag?: string } = {}): Promise<BlogPost[]> {
-  const posts = await listAllPosts();
-  return posts
-    .filter((p) => p.status === "published")
-    .filter((p) => !opts.category || p.category === opts.category)
-    .filter((p) => !opts.tag || p.tags.includes(opts.tag))
-    .sort((a, b) => (b.publishedAt ?? "").localeCompare(a.publishedAt ?? ""));
+  let query = getSupabase().from(TABLE).select("*").eq("status", "published").order("published_at", { ascending: false });
+  if (opts.category) query = query.eq("category", opts.category);
+  if (opts.tag) query = query.contains("tags", [opts.tag]);
+  const { data, error } = await query;
+  if (error) throw dbError(error);
+  return (data as PostRow[]).map(fromRow);
 }
 
 export async function getPostBySlug(slug: string): Promise<BlogPost | undefined> {
-  const posts = await ensureLoaded();
-  return posts.find((p) => p.slug === slug);
+  const { data, error } = await getSupabase().from(TABLE).select("*").eq("slug", slug).maybeSingle();
+  if (error) throw dbError(error);
+  return data ? fromRow(data as PostRow) : undefined;
 }
 
 export async function getPostById(id: string): Promise<BlogPost | undefined> {
-  const posts = await ensureLoaded();
-  return posts.find((p) => p.id === id);
+  const { data, error } = await getSupabase().from(TABLE).select("*").eq("id", id).maybeSingle();
+  if (error) throw dbError(error);
+  return data ? fromRow(data as PostRow) : undefined;
 }
 
 export async function getRelatedPosts(post: BlogPost, limit = 3): Promise<BlogPost[]> {
@@ -117,74 +82,74 @@ export async function listCategories(): Promise<string[]> {
 }
 
 async function uniqueSlug(base: string, ignoreId?: string): Promise<string> {
-  const posts = await ensureLoaded();
   let slug = slugify(base);
   let suffix = 2;
-  while (posts.some((p) => p.slug === slug && p.id !== ignoreId)) {
+  for (;;) {
+    let query = getSupabase().from(TABLE).select("id", { count: "exact", head: true }).eq("slug", slug);
+    if (ignoreId) query = query.neq("id", ignoreId);
+    const { count, error } = await query;
+    if (error) throw dbError(error);
+    if (!count) return slug;
     slug = `${slugify(base)}-${suffix++}`;
   }
-  return slug;
 }
 
 export async function createPost(input: BlogPostInput): Promise<BlogPost> {
-  const posts = await ensureLoaded();
   const slug = await uniqueSlug(input.slug || input.title);
-  const timestamp = now();
-  const post: BlogPost = {
+  const timestamp = new Date().toISOString();
+  const row = {
     id: nanoid(),
     slug,
     title: input.title,
     excerpt: input.excerpt,
     content: input.content,
-    featuredImage: input.featuredImage ?? null,
+    featured_image: input.featuredImage ?? null,
     category: input.category,
     tags: input.tags,
     author: input.author,
     status: input.status,
-    seoTitle: input.seoTitle,
-    metaDescription: input.metaDescription,
-    publishedAt: input.status === "published" ? timestamp : null,
-    createdAt: timestamp,
-    updatedAt: timestamp,
+    seo_title: input.seoTitle,
+    meta_description: input.metaDescription,
+    published_at: input.status === "published" ? timestamp : null,
+    created_at: timestamp,
+    updated_at: timestamp,
   };
-  posts.push(post);
-  await persist();
-  return post;
+  const { data, error } = await getSupabase().from(TABLE).insert(row).select().single();
+  if (error) throw dbError(error);
+  return fromRow(data as PostRow);
 }
 
 export async function updatePost(id: string, input: BlogPostInput): Promise<BlogPost | undefined> {
-  const posts = await ensureLoaded();
-  const existing = posts.find((p) => p.id === id);
+  const existing = await getPostById(id);
   if (!existing) return undefined;
 
   const slug = input.slug && input.slug !== existing.slug ? await uniqueSlug(input.slug, id) : existing.slug;
   const wasPublished = existing.status === "published";
   const isNowPublished = input.status === "published";
+  const updatedAt = new Date().toISOString();
 
-  existing.slug = slug;
-  existing.title = input.title;
-  existing.excerpt = input.excerpt;
-  existing.content = input.content;
-  existing.featuredImage = input.featuredImage ?? null;
-  existing.category = input.category;
-  existing.tags = input.tags;
-  existing.author = input.author;
-  existing.status = input.status;
-  existing.seoTitle = input.seoTitle;
-  existing.metaDescription = input.metaDescription;
-  existing.updatedAt = now();
-  if (!wasPublished && isNowPublished) existing.publishedAt = existing.updatedAt;
-  if (!isNowPublished) existing.publishedAt = null;
-
-  await persist();
-  return existing;
+  const row = {
+    slug,
+    title: input.title,
+    excerpt: input.excerpt,
+    content: input.content,
+    featured_image: input.featuredImage ?? null,
+    category: input.category,
+    tags: input.tags,
+    author: input.author,
+    status: input.status,
+    seo_title: input.seoTitle,
+    meta_description: input.metaDescription,
+    published_at: !isNowPublished ? null : !wasPublished ? updatedAt : existing.publishedAt,
+    updated_at: updatedAt,
+  };
+  const { data, error } = await getSupabase().from(TABLE).update(row).eq("id", id).select().maybeSingle();
+  if (error) throw dbError(error);
+  return data ? fromRow(data as PostRow) : undefined;
 }
 
 export async function deletePost(id: string): Promise<boolean> {
-  const posts = await ensureLoaded();
-  const index = posts.findIndex((p) => p.id === id);
-  if (index === -1) return false;
-  posts.splice(index, 1);
-  await persist();
-  return true;
+  const { error, count } = await getSupabase().from(TABLE).delete({ count: "exact" }).eq("id", id);
+  if (error) throw dbError(error);
+  return (count ?? 0) > 0;
 }
