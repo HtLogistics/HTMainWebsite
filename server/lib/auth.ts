@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
-import bcrypt from "bcryptjs";
+import { createAuthClient } from "./supabase";
 
 const MAX_ATTEMPTS = 5;
 const WINDOW_MS = 10 * 60 * 1000;
@@ -29,12 +29,23 @@ export function clearLoginAttempts(ip: string): void {
   attempts.delete(ip);
 }
 
-export async function verifyAdminCredentials(username: string, password: string): Promise<boolean> {
-  const expectedUsername = process.env.ADMIN_USERNAME;
-  const expectedHash = process.env.ADMIN_PASSWORD_HASH;
-  if (!expectedUsername || !expectedHash) return false;
-  if (username !== expectedUsername) return false;
-  return bcrypt.compare(password, expectedHash);
+/* Passwords are checked by Supabase Auth, but being a Supabase user is not enough: anyone can be
+   given an account, so only users whose app_metadata.role is "admin" get in. app_metadata can only
+   be written with the service role (SQL editor or dashboard), never by the user themselves, unlike
+   user_metadata. Returns false for wrong credentials and non-admins alike so the login screen
+   cannot be used to discover which emails have accounts. Throws if Supabase itself is failing. */
+export async function signInAdmin(email: string, password: string): Promise<boolean> {
+  const client = createAuthClient();
+  const { data, error } = await client.auth.signInWithPassword({ email, password });
+  if (error) {
+    if (error.status === 429) throw Object.assign(new Error("Too many login attempts. Try again later."), { status: 429 });
+    if (error.status === 400 || error.status === 401 || error.status === 422) return false;
+    throw new Error(`Supabase Auth: ${error.message}`);
+  }
+  const isAdmin = data.user?.app_metadata?.role === "admin";
+  // Nothing keeps this Supabase session, so end it rather than leave a live one behind.
+  await client.auth.signOut().catch(() => {});
+  return isAdmin;
 }
 
 /* The admin session is a signed cookie rather than a server-side session. On Vercel every

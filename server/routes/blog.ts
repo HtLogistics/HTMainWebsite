@@ -12,7 +12,7 @@ import {
   listPublishedPosts,
   updatePost,
 } from "../lib/postsStore";
-import { clearLoginAttempts, endAdminSession, isAdminRequest, isLoginRateLimited, recordFailedLogin, requireAdmin, startAdminSession, verifyAdminCredentials } from "../lib/auth";
+import { clearLoginAttempts, endAdminSession, isAdminRequest, isLoginRateLimited, recordFailedLogin, requireAdmin, signInAdmin, startAdminSession } from "../lib/auth";
 import { upload, uploadImage } from "../lib/uploads";
 
 export const blogRouter = Router();
@@ -50,16 +50,16 @@ blogRouter.post("/admin/login", asyncHandler(async (req, res) => {
     return;
   }
 
-  const { username, password } = req.body ?? {};
-  if (typeof username !== "string" || typeof password !== "string") {
-    res.status(400).json({ error: "Username and password are required" });
+  const { email, password } = req.body ?? {};
+  if (typeof email !== "string" || typeof password !== "string" || !email.trim() || !password) {
+    res.status(400).json({ error: "Email and password are required" });
     return;
   }
 
-  const valid = await verifyAdminCredentials(username, password);
+  const valid = await signInAdmin(email.trim().toLowerCase(), password);
   if (!valid) {
     recordFailedLogin(ip);
-    res.status(401).json({ error: "Invalid username or password" });
+    res.status(401).json({ error: "Invalid email or password" });
     return;
   }
 

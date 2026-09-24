@@ -70,14 +70,14 @@ function loginErrorMessage(err: unknown): string {
   if (isAxiosError<{ error?: string }>(err) && err.response) {
     const { status, data } = err.response;
     if (status === 429) return data?.error ?? "Too many attempts. Please try again in a few minutes.";
-    if (status === 400 || status === 401) return "Invalid username or password.";
+    if (status === 400 || status === 401) return "Invalid email or password.";
     return "Something went wrong on the server. Please try again in a moment.";
   }
   return "Can't reach the server. Check your connection and try again.";
 }
 
 function LoginView({ onSuccess }: { onSuccess: () => void }) {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,7 +88,7 @@ function LoginView({ onSuccess }: { onSuccess: () => void }) {
     setError(null);
     setBusy(true);
     try {
-      await adminLogin(username, password);
+      await adminLogin(email, password);
       onSuccess();
     } catch (err) {
       setError(loginErrorMessage(err));
@@ -120,12 +120,14 @@ function LoginView({ onSuccess }: { onSuccess: () => void }) {
           {error && <div className="admin-error" role="alert"><AlertCircle aria-hidden="true" />{error}</div>}
 
           <div className="admin-field">
-            <label htmlFor="admin-username">Username</label>
+            <label htmlFor="admin-email">Email</label>
             <input
-              id="admin-username"
+              id="admin-email"
               className="admin-input"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              type="email"
+              inputMode="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               autoComplete="username"
               autoCapitalize="none"
               spellCheck={false}

@@ -1,6 +1,3 @@
-/* Run once in the Supabase SQL editor (Project > SQL Editor > New query) for a fresh project.
-   Safe to re-run: every statement is idempotent. */
-
 create table if not exists posts (
   id text primary key,
   slug text not null unique,
@@ -31,20 +28,13 @@ create table if not exists enquiries (
   created_at timestamptz not null default now()
 );
 
-/* The server only ever talks to Supabase with the service_role key, which bypasses RLS, so
-   these tables are never reachable with the public anon key regardless of policy. Enabling
-   RLS with no policies is defense in depth, not something the app relies on. */
 alter table posts enable row level security;
 alter table enquiries enable row level security;
 
-/* Public bucket so uploaded images are servable directly from Supabase's CDN via their
-   public URL, without a signed-URL round trip through our own server on every page view. */
 insert into storage.buckets (id, name, public)
 values ('uploads', 'uploads', true)
 on conflict (id) do nothing;
 
-/* Seed content so the blog isn't empty on first launch, matching what previously shipped as
-   in-code seed data. Skipped automatically if posts already exist. */
 insert into posts (id, slug, title, excerpt, content, category, tags, author, status, seo_title, meta_description, published_at, created_at, updated_at)
 select * from (values
   (

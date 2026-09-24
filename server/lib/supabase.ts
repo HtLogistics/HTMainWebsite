@@ -23,3 +23,16 @@ export function getSupabase(): SupabaseClient {
 export function dbError(error: { message: string }): Error {
   return new Error(`Supabase: ${error.message}`);
 }
+
+// Password sign-in goes through its own client built with the publishable key. It must never be
+// the service-role client: after signInWithPassword a supabase-js client switches to that user's
+// token, which would silently drop the service role's privileges for every later query. A fresh
+// client per attempt also means one admin's session is never held in memory for the next request.
+export function createAuthClient(): SupabaseClient {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !key) {
+    throw new Error("SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY must be set");
+  }
+  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+}

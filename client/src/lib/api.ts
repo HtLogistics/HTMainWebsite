@@ -23,8 +23,8 @@ export async function fetchCategories(): Promise<string[]> {
   return data.categories;
 }
 
-export async function adminLogin(username: string, password: string): Promise<void> {
-  await api.post("/admin/login", { username, password });
+export async function adminLogin(email: string, password: string): Promise<void> {
+  await api.post("/admin/login", { email, password });
 }
 
 export async function adminLogout(): Promise<void> {

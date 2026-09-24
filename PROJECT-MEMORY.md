@@ -17,8 +17,8 @@ external drive or cloud storage. In particular these are irreplaceable:
 | What | Path | Why it matters |
 |---|---|---|
 | Whole project | `ht-logistics-recreation/` | source code, all pages, all styles |
-| Secrets | `.env` | admin username, bcrypt password hash, session secret (gitignored) |
-| CMS data | `data/posts.json`, `data/enquiries.json`, `data/uploads/` | the two blog posts and their images (gitignored) |
+| Secrets | `.env` | session secret and Supabase keys (gitignored) |
+| CMS data | Supabase project: tables `posts`, `enquiries`, Storage bucket `uploads` | blog posts, contact-form enquiries and uploaded images; schema in `supabase/schema.sql` |
 | Client profile | `HT LOGISTICS SOLUTIONS - COMPANY PROFILE 2.pdf` (34 MB) | source of truth for every fact on the site |
 | Proposal | `HT LOGISTIC FINAL PROPOSAL.pdf` | signed scope (was outside this folder; find and back it up too) |
 | Generated images | all `*.jpeg` in root + `.source-backups/` | the Nano Banana / Gemini originals (processed copies live in `client/src/assets/`) |
@@ -84,8 +84,9 @@ comes after this project. Note: the full visual redesign we ended up doing went 
   `patches/wouter@3.7.1.patch`), Tailwind 4 (mostly hand-written CSS in
   `client/src/index.css`), shadcn/ui components in `client/src/components/ui/`,
   lucide-react icons, framer-motion, sonner toasts, zod.
-- **Backend**: Express 4 + express-session + bcryptjs + multer. File-based storage
-  (JSON files in `data/`), no database.
+- **Backend**: Express 4 + multer, deployed as a Vercel function (`api/index.js`). Data lives in
+  Supabase (Postgres + Storage). Admin sign-in uses Supabase Auth; the session is an HMAC-signed
+  cookie (see `server/lib/auth.ts`), so nothing is kept in server memory.
 - **Package manager**: pnpm (v10). Node 24 was in use via nvm.
 - Originally scaffolded by **Manus** (leftover `vite-plugin-manus-runtime`, `.manus-logs/`,
   `client/public/__manus__/`, `ManusDialog.tsx`; harmless, can be removed later).
@@ -93,16 +94,27 @@ comes after this project. Note: the full visual redesign we ended up doing went 
 ```bash
 pnpm install
 cp .env.example .env          # then fill in (see below)
-pnpm hash-password "yourpass" # prints ADMIN_PASSWORD_HASH for .env
 pnpm dev                      # Vite client on :3000 + API server on :5050
 pnpm check                    # tsc --noEmit
 pnpm build                    # vite build + esbuild server -> dist/
 pnpm start                    # NODE_ENV=production node dist/server.js (port 3000)
 ```
 
-`.env` keys: `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH`, `SESSION_SECRET`, optional
-`DATA_DIR`, `PORT`, `VITE_ANALYTICS_ENDPOINT`, `VITE_ANALYTICS_WEBSITE_ID` (Umami).
-The current `.env` has real values; if it is lost, regenerate the hash and secret.
+`.env` keys: `SESSION_SECRET`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`,
+`SUPABASE_SERVICE_ROLE_KEY`, optional `PORT`, `VITE_ANALYTICS_ENDPOINT`,
+`VITE_ANALYTICS_WEBSITE_ID` (Umami). Supabase values are under Settings > API.
+
+### Admin users (Supabase Auth)
+An admin is a Supabase Auth user whose `app_metadata.role` is `admin`. Being a Supabase user is
+not enough, so anyone who signs up by some other route still cannot get in. To add one:
+1. Authentication > Users > Add user > Create new user (email + password, tick Auto Confirm User).
+2. In the SQL editor run this, with the real email in lowercase:
+```sql
+update auth.users set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role": "admin"}'::jsonb where email = 'name@example.com';
+```
+3. Authentication > Sign In / Providers: turn off "Allow new users to sign up".
+To remove an admin, delete the user. Their existing cookie stays valid until it expires (8 hours).
+Paste SQL into the Supabase editor without comments: apostrophes inside comments broke it once.
 
 ### Project layout
 ```
@@ -127,9 +139,8 @@ server/
   index.ts                Express app, session, static, SEO shell injection, 404s
   routes/blog.ts          public posts API + admin CRUD + upload
   routes/enquiries.ts     contact form POST (rate-limited, honeypot) + admin inbox
-  lib/postsStore.ts, enquiriesStore.ts, uploads.ts, auth.ts, seo.ts
-  scripts/hashPassword.ts
-data/                     posts.json, enquiries.json, uploads/  (runtime data, gitignored)
+  lib/postsStore.ts, enquiriesStore.ts, uploads.ts, auth.ts, supabase.ts, seo.ts
+supabase/schema.sql       tables + storage bucket + seed posts (run once in the SQL editor)
 ideas.md                  original WordPress-replication spec (historical)
 reference-assets.txt      original WordPress image URLs (historical)
 ```
@@ -212,11 +223,10 @@ Zero enquiries stored.
    `/admin/`. Topic not yet chosen. Should target a real query relevant to Penang/Kulim
    warehousing or bonded storage and link internally to service pages.
 2. **Social content** (item 4): 2 LinkedIn posts + 2 IG/TikTok carousel concepts. Not started.
-3. **Deployment** (item 6): nothing is hosted. Need from client: domain DNS access for
-   htlogisticssolutions.com and a hosting decision. The app needs a persistent Node host
-   with a writable `DATA_DIR` (posts, enquiries, uploads). Suggested: a small VPS or
-   Railway/Render/Fly with a persistent volume; set `NODE_ENV=production`, `SESSION_SECRET`,
-   admin creds, `PORT`. Put the site behind HTTPS (cookie is `secure` in production).
+3. **Deployment** (item 6): live on Vercel (project `htlogisticssolutions`, auto-deploys from GitHub
+   `HtLogistics/HTMainWebsite` on `main`) with Supabase for data. DNS for htlogisticssolutions.com
+   is pointed at Vercel. Vercel env vars: `SESSION_SECRET` and the three `SUPABASE_*` keys. An admin
+   user still has to be created (see Admin users above).
 4. **Client revision rounds**: none of the two revision rounds has formally happened yet.
    The site has not been shown to HT Logistics as a whole.
 
